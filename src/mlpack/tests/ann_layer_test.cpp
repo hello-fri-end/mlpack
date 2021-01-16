@@ -2346,46 +2346,46 @@ TEST_CASE("VirtualBatchNormLayerParametersTest", "[ANNLayerTest]")
   REQUIRE(layer.Epsilon() == 1e-3);
 }
 
-// /**
-//  * MiniBatchDiscrimination layer numerical gradient test.
-//  */
-// TEST_CASE("MiniBatchDiscriminationTest", "[ANNLayerTest]")
-// {
-//   // Add function gradient instantiation.
-//   struct GradientFunction
-//   {
-//     GradientFunction() :
-//         input(arma::randn(5, 4)),
-//         target(arma::ones(1, 4))
-//     {
-//       model = new FFN<NegativeLogLikelihood<>, NguyenWidrowInitialization>();
-//       model->Predictors() = input;
-//       model->Responses() = target;
-//       model->Add<IdentityLayer<> >();
-//       model->Add<Linear<> >(5, 5);
-//       model->Add<MiniBatchDiscrimination<> >(5, 10, 16);
-//       model->Add<Linear<> >(10, 2);
-//       model->Add<LogSoftMax<> >();
-//     }
+ /**
+  * MiniBatchDiscrimination layer numerical gradient test.
+  */
+ TEST_CASE("MiniBatchDiscriminationTest", "[ANNLayerTest]")
+ {
+   // Add function gradient instantiation.
+   struct GradientFunction
+   {
+     GradientFunction() :
+         input(arma::randn(5, 4)),
+         target(arma::ones(1, 4))
+     {
+       model = new FFN<NegativeLogLikelihood<>, NguyenWidrowInitialization>();
+       model->Predictors() = input;
+       model->Responses() = target;
+       model->Add<IdentityLayer>();
+       model->Add<Linear>(5, 5);
+       model->Add<MiniBatchDiscrimination>(5, 10, 16);
+       model->Add<Linear>(10, 2);
+       model->Add<LogSoftMax>();
+     }
 
-//     ~GradientFunction()
-//     {
-//       delete model;
-//     }
+     ~GradientFunction()
+     {
+       delete model;
+     }
 
-//     double Gradient(arma::mat& gradient) const
-//     {
-//       return model->EvaluateWithGradient(model->Parameters(), 0, gradient, 4);
-//     }
+     double Gradient(arma::mat& gradient) const
+     {
+       return model->EvaluateWithGradient(model->Parameters(), 0, gradient, 4);
+     }
 
-//     arma::mat& Parameters() { return model->Parameters(); }
+     arma::mat& Parameters() { return model->Parameters(); }
 
-//     FFN<NegativeLogLikelihood<>, NguyenWidrowInitialization>* model;
-//     arma::mat input, target;
-//   } function;
+     FFN<NegativeLogLikelihood<>, NguyenWidrowInitialization>* model;
+     arma::mat input, target;
+   } function;
 
-//   REQUIRE(CheckGradient(function) <= 1e-4);
-// }
+   REQUIRE(CheckGradient(function) <= 1e-4);
+ }
 
 /**
  * Simple Transposed Convolution layer test.
