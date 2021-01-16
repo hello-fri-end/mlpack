@@ -65,7 +65,7 @@
 #include <mlpack/methods/ann/layer/virtual_batch_norm.hpp>
 // #include <mlpack/methods/ann/layer/vr_class_reward.hpp>
 // #include <mlpack/methods/ann/layer/weight_norm.hpp>
-#include <mlpack/methods/ann/layer/mini_batch_discrimination.hpp>
+#include <mlpack/methods/ann/layer/minibatch_discrimination.hpp>
 
 // // Convolution modules.
 // #include <mlpack/methods/ann/convolution_rules/border_modes.hpp>
