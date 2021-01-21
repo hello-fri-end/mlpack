@@ -25,6 +25,7 @@
 #include <mlpack/methods/ann/loss_functions/reconstruction_loss.hpp>
 #include <mlpack/methods/ann/loss_functions/margin_ranking_loss.hpp>
 #include <mlpack/methods/ann/loss_functions/mean_squared_logarithmic_error.hpp>
+#include <mlpack/methods/ann/loss_functions/concat_performance.hpp>
 #include <mlpack/methods/ann/loss_functions/mean_bias_error.hpp>
 #include <mlpack/methods/ann/loss_functions/dice_loss.hpp>
 #include <mlpack/methods/ann/loss_functions/log_cosh_loss.hpp>
@@ -896,4 +897,22 @@ TEST_CASE("MeanAbsolutePercentageErrorTest", "[LossFunctionsTest]")
   REQUIRE(output.n_rows == input.n_rows);
   REQUIRE(output.n_cols == input.n_cols);
   CheckMatrices(output, expectedOutput, 0.1);
+}
+
+/***
+ * Simple test for ConcatPerformance function
+ */
+TEST_CASE("ConcatPerformanceTest", "[LossFunctionsTest]")
+{
+  const size_t inSize=5;
+  arma::mat input, target,output;
+  input= arma::ones(10,1);
+  target= arma::ones(1,1);
+
+  ConcatPerformance module(inSize);
+  //test Forward function
+  REQUIRE(module.Forward(input, target) == -5);
+  //test Backward function
+  module.Backward(input,target,output);
+  REQUIRE(arma::accu(output) == -5);
 }
