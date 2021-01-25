@@ -14,10 +14,6 @@
 
 #include <mlpack/core.hpp>
 
-#include "../visitor/delete_visitor.hpp"
-#include "../visitor/delta_visitor.hpp"
-#include "../visitor/copy_visitor.hpp"
-#include "../visitor/output_parameter_visitor.hpp"
 
 #include "layer_types.hpp"
 #include "add_merge.hpp"
@@ -36,21 +32,20 @@ namespace ann /** Artificial Neural Network. */ {
  *         arma::sp_mat or arma::cube).
  */
 template <
-    typename InputDataType = arma::mat,
-    typename OutputDataType = arma::mat,
-    typename... CustomLayers
+    typename InputType = arma::mat,
+    typename OutputType = arma::mat
 >
-class Recurrent
+class RecurrentType: public Layer<InputType, OutputType>
 {
  public:
   /**
    * Default constructor---this will create a Recurrent object that can't be
    * used, so be careful!  Make sure to set all the parameters before use.
    */
-  Recurrent();
+  RecurrentType();
 
   //! Copy constructor.
-  Recurrent(const Recurrent&);
+  RecurrentType(const RecurrentType&);
 
   /**
    * Create the Recurrent object using the specified modules.
@@ -65,7 +60,7 @@ class Recurrent
            typename InputModuleType,
            typename FeedbackModuleType,
            typename TransferModuleType>
-  Recurrent(const StartModuleType& start,
+  RecurrentType(const StartModuleType& start,
             const InputModuleType& input,
             const FeedbackModuleType& feedback,
             const TransferModuleType& transfer,
@@ -78,8 +73,7 @@ class Recurrent
    * @param input Input data used for evaluating the specified function.
    * @param output Resulting output activation.
    */
-  template<typename eT>
-  void Forward(const arma::Mat<eT>& input, arma::Mat<eT>& output);
+  void Forward(const InputType& input, OutputType& output);
 
   /**
    * Ordinary feed backward pass of a neural network, calculating the function
@@ -90,10 +84,9 @@ class Recurrent
    * @param gy The backpropagated error.
    * @param g The calculated gradient.
    */
-  template<typename eT>
-  void Backward(const arma::Mat<eT>& /* input */,
-                const arma::Mat<eT>& gy,
-                arma::Mat<eT>& g);
+  void Backward(const InputType& /* input */,
+                const OutputType& gy,
+                OutputType& g);
 
   /*
    * Calculate the gradient using the output delta and the input activation.
@@ -102,13 +95,12 @@ class Recurrent
    * @param error The calculated error.
    * @param gradient The calculated gradient.
    */
-  template<typename eT>
-  void Gradient(const arma::Mat<eT>& input,
-                const arma::Mat<eT>& error,
-                arma::Mat<eT>& /* gradient */);
+  void Gradient(const InputType& input,
+                const OutputType& error,
+                OutputType& /* gradient */);
 
   //! Get the model modules.
-  std::vector<LayerTypes<CustomLayers...> >& Model() { return network; }
+  std::vector<Layer<InputType, OutputType>*>& Model() { return network; }
 
     //! The value of the deterministic parameter.
   bool Deterministic() const { return deterministic; }
@@ -116,24 +108,24 @@ class Recurrent
   bool& Deterministic() { return deterministic; }
 
   //! Get the parameters.
-  OutputDataType const& Parameters() const { return parameters; }
+  OutputType const& Parameters() const { return parameters; }
   //! Modify the parameters.
-  OutputDataType& Parameters() { return parameters; }
+  OutputType& Parameters() { return parameters; }
 
   //! Get the output parameter.
-  OutputDataType const& OutputParameter() const { return outputParameter; }
+  OutputType const& OutputParameter() const { return outputParameter; }
   //! Modify the output parameter.
-  OutputDataType& OutputParameter() { return outputParameter; }
+  OutputType& OutputParameter() { return outputParameter; }
 
   //! Get the delta.
-  OutputDataType const& Delta() const { return delta; }
+  OutputType const& Delta() const { return delta; }
   //! Modify the delta.
-  OutputDataType& Delta() { return delta; }
+  OutputType& Delta() { return delta; }
 
   //! Get the gradient.
-  OutputDataType const& Gradient() const { return gradient; }
+  OutputType const& Gradient() const { return gradient; }
   //! Modify the gradient.
-  OutputDataType& Gradient() { return gradient; }
+  OutputType& Gradient() { return gradient; }
 
   //! Get the number of steps to backpropagate through time.
   size_t const& Rho() const { return rho; }
@@ -145,23 +137,18 @@ class Recurrent
   void serialize(Archive& ar, const uint32_t /* version */);
 
  private:
-  //! Locally-stored delete visitor module object.
-  DeleteVisitor deleteVisitor;
-
-  //! Locally-stored copy visitor
-  CopyVisitor<CustomLayers...> copyVisitor;
 
   //! Locally-stored start module.
-  LayerTypes<CustomLayers...> startModule;
+  Layer<InputType,OutputType> startModule;
 
   //! Locally-stored input module.
-  LayerTypes<CustomLayers...> inputModule;
+  Layer<InputType,OutputType> inputModule;
 
   //! Locally-stored feedback module.
-  LayerTypes<CustomLayers...> feedbackModule;
+  Layer<InputType,OutputType> feedbackModule;
 
   //! Locally-stored transfer module.
-  LayerTypes<CustomLayers...> transferModule;
+  Layer<InputType,OutputType> transferModule;
 
   //! Number of steps to backpropagate through time (BPTT).
   size_t rho;
@@ -183,41 +170,37 @@ class Recurrent
   bool ownsLayer;
 
   //! Locally-stored weight object.
-  OutputDataType parameters;
+  OutputType parameters;
 
   //! Locally-stored initial module.
-  LayerTypes<CustomLayers...> initialModule;
+  Layer<InputType,OutputType> initialModule;
 
   //! Locally-stored recurrent module.
-  LayerTypes<CustomLayers...> recurrentModule;
+  Layer<InputType,OutputType> recurrentModule;
+
+  //!Locally-stored merge module
+  Layer<InputType, OutputType> mergeModule;
 
   //! Locally-stored model modules.
-  std::vector<LayerTypes<CustomLayers...> > network;
-
-  //! Locally-stored merge module.
-  LayerTypes<CustomLayers...> mergeModule;
-
-  //! Locally-stored delta visitor.
-  DeltaVisitor deltaVisitor;
-
-  //! Locally-stored output parameter visitor.
-  OutputParameterVisitor outputParameterVisitor;
+  std::vector<Layer<InputType,OutputType>*> network;
 
   //! Locally-stored feedback output parameters.
-  std::vector<arma::mat> feedbackOutputParameter;
+  std::vector<OutputType> feedbackOutputParameter;
 
   //! Locally-stored delta object.
-  OutputDataType delta;
+  OutputType delta;
 
   //! Locally-stored gradient object.
-  OutputDataType gradient;
+  OutputType gradient;
 
   //! Locally-stored output parameter object.
-  OutputDataType outputParameter;
+  OutputType outputParameter;
 
   //! Locally-stored recurrent error parameter.
-  arma::mat recurrentError;
+  OutputType recurrentError;
 }; // class Recurrent
+
+typedef RecurrentType<arma::mat,arma::mat> Recurrent;
 
 } // namespace ann
 } // namespace mlpack
