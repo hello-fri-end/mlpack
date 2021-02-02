@@ -34,7 +34,7 @@ template <
     typename InputType = arma::mat,
     typename OutputType = arma::mat
 >
-class ConcatPerformance:
+class ConcatPerformance
 {
  public:
   /**
@@ -101,8 +101,6 @@ class ConcatPerformance:
   //! Locally-stored output parameter object.
   OutputType outputParameter;
 }; // class ConcatPerformance
-typedef ConcatPerformance <arma::mat, arma::mat> ConcatPerformance;
-
 } // namespace ann
 } // namespace mlpack
 
