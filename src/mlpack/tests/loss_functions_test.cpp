@@ -910,12 +910,13 @@ TEST_CASE("ConcatPerformanceTest", "[LossFunctionsTest]")
   input= arma::ones(10,1);
   target= arma::ones(1,1);
 
-  ConcatPerformance module(inSize);
+  ConcatPerformance<> module(inSize);
   //test Forward function
   REQUIRE(module.Forward(input, target) == -5);
   //test Backward function
   module.Backward(input,target,output);
   REQUIRE(arma::accu(output) == -5);
+}
 /**
  * Test that the function that can access the parameters of the
  * VR Class Reward layer works.

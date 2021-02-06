@@ -267,7 +267,7 @@ class MeanPoolingType : public Layer<InputType, OutputType>
 }; // class MeanPoolingType
 
 // Standard MaxPooling layer.
-typedef MaxPoolingType<arma::mat, arma::mat> MaxPooling;
+typedef MeanPoolingType<arma::mat, arma::mat> MeanPooling;
 
 } // namespace ann
 } // namespace mlpack

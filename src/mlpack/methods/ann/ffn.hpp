@@ -316,6 +316,12 @@ class FFN
   //! Modify the matrix of data points (predictors).
   InputType& Predictors() { return predictors; }
 
+  //! Get the deterministic parameter
+  bool const& Deterministic() const { return deterministic; }
+
+  //! Modify the deterministic parameter
+  bool &Deterministic() { return deterministic; }
+
   //! Reset the module infomration (weights/parameters).
   void ResetParameters();
 
@@ -372,7 +378,7 @@ class FFN
                   const TargetsType& targets,
                   GradientsType& gradients);
 
- private:
+ protected:
   // Helper functions.
 
   /**
@@ -470,6 +476,17 @@ class FFN
 
   //! Locally-stored gradient parameter.
   OutputType gradient;
+
+  //The GAN class should have access to internal members
+  template<
+    typename Model,
+    typename InitializerType,
+    typename Noise,
+    typename PolicyType,
+    typename Input,
+    typename Output
+    >
+    friend class GAN;
 }; // class FFN
 
 } // namespace ann

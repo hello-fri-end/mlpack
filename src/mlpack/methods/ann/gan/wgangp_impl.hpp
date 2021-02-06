@@ -16,7 +16,6 @@
 
 #include <mlpack/methods/ann/ffn.hpp>
 #include <mlpack/methods/ann/init_rules/network_init.hpp>
-#include <mlpack/methods/ann/visitor/output_parameter_visitor.hpp>
 #include <mlpack/methods/ann/activation_functions/softplus_function.hpp>
 
 namespace mlpack {
@@ -25,13 +24,15 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 template<typename Policy>
 typename std::enable_if<std::is_same<Policy, WGANGP>::value,
                         double>::type
-GAN<Model, InitializationRuleType, Noise, PolicyType>::Evaluate(
-    const arma::mat& /* parameters */,
+GAN<Model, InitializationRuleType, Noise, PolicyType, InputType, OutputType>::Evaluate(
+    const OutputType& /* parameters */,
     const size_t i,
     const size_t /* batchSize */)
 {
@@ -53,15 +54,12 @@ GAN<Model, InitializationRuleType, Noise, PolicyType>::Evaluate(
 
   discriminator.Forward(std::move(currentInput));
   double res = discriminator.outputLayer.Forward(
-      std::move(boost::apply_visitor(
-      outputParameterVisitor,
-      discriminator.network.back())), std::move(currentTarget));
+      discriminator.Model().back()->OutputParameter(), std::move(currentTarget));
 
   noise.imbue( [&]() { return noiseFunction();} );
   generator.Forward(std::move(noise));
 
-  arma::mat generatedData = boost::apply_visitor(outputParameterVisitor,
-      generator.network.back());
+  arma::mat generatedData = generator.Model().back()->OutputParameter();
   predictors.cols(numFunctions, numFunctions + batchSize - 1) =
       generatedData;
   discriminator.Forward(std::move(predictors.cols(numFunctions,
@@ -72,9 +70,7 @@ GAN<Model, InitializationRuleType, Noise, PolicyType>::Evaluate(
   currentTarget = arma::mat(responses.memptr() + numFunctions,
       1, batchSize, false, false);
   res += discriminator.outputLayer.Forward(
-      std::move(boost::apply_visitor(
-      outputParameterVisitor,
-      discriminator.network.back())), std::move(currentTarget));
+      std::move(discriminator.Model().back()->OutputParameter), std::move(currentTarget));
 
   // Gradient Penalty is calculated here.
   double epsilon = math::Random();
@@ -93,13 +89,16 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
+
 template<typename GradType, typename Policy>
 typename std::enable_if<std::is_same<Policy, WGANGP>::value,
                         double>::type
-GAN<Model, InitializationRuleType, Noise, PolicyType>::
-EvaluateWithGradient(const arma::mat& /* parameters */,
+GAN<Model, InitializationRuleType, Noise, PolicyType, InputType, OutputType>::
+EvaluateWithGradient(const OutputType& /* parameters */,
                      const size_t i,
                      GradType& gradient,
                      const size_t /* batchSize */)
@@ -113,7 +112,7 @@ EvaluateWithGradient(const arma::mat& /* parameters */,
   {
     if (parameter.is_empty())
       Reset();
-    gradient = arma::zeros<arma::mat>(parameter.n_elem, 1);
+    gradient = arma::zeros<OutputType>(parameter.n_elem, 1);
   }
   else
     gradient.zeros();
@@ -126,7 +125,7 @@ EvaluateWithGradient(const arma::mat& /* parameters */,
 
   if (noiseGradientDiscriminator.is_empty())
   {
-    noiseGradientDiscriminator = arma::zeros<arma::mat>(
+    noiseGradientDiscriminator = arma::zeros<OutputType>(
         gradientDiscriminator.n_elem, 1);
   }
   else
@@ -150,9 +149,7 @@ EvaluateWithGradient(const arma::mat& /* parameters */,
 
   noise.imbue( [&]() { return noiseFunction();} );
   generator.Forward(std::move(noise));
-  arma::mat generatedData = boost::apply_visitor(outputParameterVisitor,
-      generator.network.back());
-
+  arma::mat generatedData = generator.Model().back()->OutputParameter();
   // Gradient Penalty is calculated here.
   double epsilon = math::Random();
   predictors.cols(numFunctions, numFunctions + batchSize - 1) =
@@ -177,13 +174,12 @@ EvaluateWithGradient(const arma::mat& /* parameters */,
         arma::ones(1, batchSize);
 
     discriminator.outputLayer.Backward(
-        boost::apply_visitor(outputParameterVisitor,
-        discriminator.network.back()), discriminator.responses.cols(
+        discriminator.Model().back()->OutputParameter(),
+         discriminator.Responses().cols(
         numFunctions, numFunctions + batchSize - 1), discriminator.error);
     discriminator.Backward();
 
-    generator.error = boost::apply_visitor(deltaVisitor,
-        discriminator.network[1]);
+    generator.error = discriminator.Model()[1]->Delta();
 
     generator.Predictors() = noise;
     generator.Backward();
@@ -207,15 +203,18 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
+
 template<typename Policy>
 typename std::enable_if<std::is_same<Policy, WGANGP>::value,
                         void>::type
-GAN<Model, InitializationRuleType, Noise, PolicyType>::
-Gradient(const arma::mat& parameters,
+GAN<Model, InitializationRuleType, Noise, PolicyType, InputType, OutputType>::
+Gradient(const OutputType& parameters,
          const size_t i,
-         arma::mat& gradient,
+         OutputType& gradient,
          const size_t batchSize)
 {
   this->EvaluateWithGradient(parameters, i, gradient, batchSize);

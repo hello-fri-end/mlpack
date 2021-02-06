@@ -21,8 +21,8 @@
 namespace mlpack {
 namespace ann { /** Artificial Neural Network. */
 
-template<typename InputDataType, typename OutputDataType>
-BatchNorm<InputDataType, OutputDataType>::BatchNorm() :
+template<typename InputType, typename OutputType>
+BatchNormType<InputType, OutputType>::BatchNormType() :
     size(0),
     eps(1e-8),
     average(true),
@@ -35,8 +35,8 @@ BatchNorm<InputDataType, OutputDataType>::BatchNorm() :
   // Nothing to do here.
 }
 
-template <typename InputDataType, typename OutputDataType>
-BatchNorm<InputDataType, OutputDataType>::BatchNorm(
+template <typename InputType, typename OutputType>
+BatchNormType<InputType, OutputType>::BatchNormType(
     const size_t size,
     const double eps,
     const bool average,
@@ -55,8 +55,8 @@ BatchNorm<InputDataType, OutputDataType>::BatchNorm(
   runningVariance.ones(size, 1);
 }
 
-template<typename InputDataType, typename OutputDataType>
-void BatchNorm<InputDataType, OutputDataType>::Reset()
+template<typename InputType, typename OutputType>
+void BatchNormType<InputType, OutputType>::Reset()
 {
   // Gamma acts as the scaling parameters for the normalized output.
   gamma = arma::mat(weights.memptr(), size, 1, false, false);
@@ -73,11 +73,10 @@ void BatchNorm<InputDataType, OutputDataType>::Reset()
   loading = false;
 }
 
-template<typename InputDataType, typename OutputDataType>
-template<typename eT>
-void BatchNorm<InputDataType, OutputDataType>::Forward(
-    const arma::Mat<eT>& input,
-    arma::Mat<eT>& output)
+template<typename InputType, typename OutputType>
+void BatchNormType<InputType, OutputType>::Forward(
+    const InputType& input,
+    OutputType& output)
 {
   Log::Assert(input.n_rows % size == 0, "Input features must be divisible \
       by feature maps.");
@@ -101,11 +100,11 @@ void BatchNorm<InputDataType, OutputDataType>::Forward(
 
     // Input corresponds to output from convolution layer.
     // Use a cube for simplicity.
-    arma::cube inputTemp(const_cast<arma::Mat<eT>&>(input).memptr(),
+    arma::cube inputTemp(const_cast<InputType&>(input).memptr(),
         inputSize, size, batchSize, false, false);
 
     // Initialize output to same size and values for convenience.
-    arma::cube outputTemp(const_cast<arma::Mat<eT>&>(output).memptr(),
+    arma::cube outputTemp(const_cast<OutputType&>(output).memptr(),
         inputSize, size, batchSize, false, false);
     outputTemp = inputTemp;
 
@@ -152,7 +151,7 @@ void BatchNorm<InputDataType, OutputDataType>::Forward(
   {
     // Normalize the input and scale and shift the output.
     output = input;
-    arma::cube outputTemp(const_cast<arma::Mat<eT>&>(output).memptr(),
+    arma::cube outputTemp(const_cast<OutputType&>(output).memptr(),
         input.n_rows / size, size, batchSize, false, false);
 
     outputTemp.each_slice() -= arma::repmat(runningMean.t(),
@@ -166,19 +165,18 @@ void BatchNorm<InputDataType, OutputDataType>::Forward(
   }
 }
 
-template<typename InputDataType, typename OutputDataType>
-template<typename eT>
-void BatchNorm<InputDataType, OutputDataType>::Backward(
-    const arma::Mat<eT>& input,
-    const arma::Mat<eT>& gy,
-    arma::Mat<eT>& g)
+template<typename InputType, typename OutputType>
+void BatchNormType<InputType, OutputType>::Backward(
+    const InputType& input,
+    const OutputType& gy,
+    OutputType& g)
 {
   const arma::mat stdInv = 1.0 / arma::sqrt(variance + eps);
 
   g.set_size(arma::size(input));
-  arma::cube gyTemp(const_cast<arma::Mat<eT>&>(gy).memptr(),
+  arma::cube gyTemp(const_cast<OutputType&>(gy).memptr(),
       input.n_rows / size, size, input.n_cols, false, false);
-  arma::cube gTemp(const_cast<arma::Mat<eT>&>(g).memptr(),
+  arma::cube gTemp(const_cast<OutputType&>(g).memptr(),
       input.n_rows / size, size, input.n_cols, false, false);
 
   // Step 1: dl / dxhat.
@@ -204,15 +202,14 @@ void BatchNorm<InputDataType, OutputDataType>::Backward(
   gTemp.each_slice() += normTemp;
 }
 
-template<typename InputDataType, typename OutputDataType>
-template<typename eT>
-void BatchNorm<InputDataType, OutputDataType>::Gradient(
-    const arma::Mat<eT>& /* input */,
-    const arma::Mat<eT>& error,
-    arma::Mat<eT>& gradient)
+template<typename InputType, typename OutputType>
+void BatchNormType<InputType, OutputType>::Gradient(
+    const InputType& /* input */,
+    const OutputType& error,
+    OutputType& gradient)
 {
   gradient.set_size(size + size, 1);
-  arma::cube errorTemp(const_cast<arma::Mat<eT>&>(error).memptr(),
+  arma::cube errorTemp(const_cast<OutputType&>(error).memptr(),
       error.n_rows / size, size, error.n_cols, false, false);
 
   // Step 5: dl / dy * xhat.
@@ -224,9 +221,9 @@ void BatchNorm<InputDataType, OutputDataType>::Gradient(
   gradient.submat(gamma.n_elem, 0, gradient.n_elem - 1, 0) = temp.t();
 }
 
-template<typename InputDataType, typename OutputDataType>
+template<typename InputType, typename OutputType>
 template<typename Archive>
-void BatchNorm<InputDataType, OutputDataType>::serialize(
+void BatchNormType<InputType, OutputType>::serialize(
     Archive& ar, const uint32_t /* version */)
 {
   ar(CEREAL_NVP(size));
