@@ -378,7 +378,7 @@ class FFN
                   const TargetsType& targets,
                   GradientsType& gradients);
 
- protected:
+ private:
   // Helper functions.
 
   /**
