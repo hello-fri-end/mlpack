@@ -86,6 +86,14 @@ ConcatType<InputType, OutputType>::~ConcatType()
 }
 
 template<typename InputType, typename OutputType>
+void ConcatType<InputType, OutputType>::Reset()
+{
+  for(size_t i = 0; i < network.size(); ++i)
+    network[i]->Reset();
+
+}
+
+template<typename InputType, typename OutputType>
 void ConcatType<InputType, OutputType>::Forward(
     const InputType& input, OutputType& output)
 {
@@ -206,6 +214,8 @@ void ConcatType<InputType, OutputType>::Gradient(
       err.reshape(err.n_rows * channels, err.n_cols / channels);
 
       network[i]->Gradient(input, err, network[i]->Gradient());
+      network[i]->Gradient().print();
+      std::cout<<""<<std::endl;
       rowCount += rows;
     }
   }

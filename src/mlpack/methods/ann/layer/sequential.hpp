@@ -89,6 +89,13 @@ class SequentialType : public Layer<InputType, OutputType>
   ~SequentialType();
 
   /**
+   * Reset the layer parameters. This method is called to 
+   * assign the allocated memory to the internal learnable parameters.
+   */
+  void Reset();
+
+
+  /**
    * Ordinary feed forward pass of a neural network, evaluating the function
    * f(x) by propagating the activity forward through f.
    *

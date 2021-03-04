@@ -83,6 +83,14 @@ SequentialType<InputType, OutputType, Residual>::~SequentialType()
 }
 
 template <typename InputType, typename OutputType, bool Residual>
+void SequentialType<InputType, OutputType, Residual>::Reset()
+{
+  for (size_t i = 0; i < network.size(); ++i)
+    network[i]->Reset();
+}
+
+
+template <typename InputType, typename OutputType, bool Residual>
 void SequentialType<InputType, OutputType, Residual>::
 Forward(const InputType& input, OutputType& output)
 {
@@ -116,6 +124,7 @@ Forward(const InputType& input, OutputType& output)
         network[i - 1]->OutputParameter(),
         network[i]->OutputParameter()
     );
+    
 
     // if (!reset)
     // {
@@ -192,6 +201,9 @@ Gradient(const InputType& input,
       error,
       network.back()->Gradient()
   );
+  
+      std::cout<<"Hello from sequential gradient"<< network.size()<<std::endl;
+      network.back()->Gradient().print();
 
   for (size_t i = 2; i < network.size(); ++i)
   {
@@ -200,6 +212,10 @@ Gradient(const InputType& input,
         network[network.size() - i + 1]->Delta(),
         network[network.size() - i]->Gradient()
     );
+      std::cout<<"Hi from sequential gradient"<<std::endl;
+      network[network.size()-i]->Gradient().print();
+
+
   }
 
   network.front()->Gradient(
@@ -225,6 +241,7 @@ void SequentialType<InputType, OutputType, Residual>::serialize(
   // ar(CEREAL_VECTOR_VARIANT_POINTER(network));
   ar(CEREAL_NVP(ownsLayers));
 }
+
 
 } // namespace ann
 } // namespace mlpack

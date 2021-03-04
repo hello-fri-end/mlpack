@@ -4833,3 +4833,202 @@ TEST_CASE("GradientMultiheadAttentionTest", "[ANNLayerTest]")
 
   REQUIRE(CheckGradient(function) <= 3e-06);
 }
+
+/*
+ * Function for initializing parameters of Inception3 modules
+ */
+template<typename NetworkType>
+void Initialize(NetworkType& network)
+{
+  for(size_t i=0; i < network.size(); ++i)
+  {
+    if(network[i]->Model().size() > 0)
+      Initialize(network[i]->Model());
+    else
+      network[i]->Parameters().ones();
+  }
+}
+/**
+ * A simple test for Inception3A module
+ */
+
+TEST_CASE("Inception3ATest", "[ANNLayerTest]")
+{
+  // filter sizes for various layers 
+  const arma::vec outA = {1};
+  const arma::vec outB = {1, 1};
+  const arma::vec outC = {1, 1, 1};
+  const arma::vec outD = {1};
+
+  arma::mat input, output;
+  input.ones(100, 1);
+
+  Inception3A module(1, 10, 10, outA, outB, outC, outD); 
+
+  // Set input width and height for MaxPool
+  module.Model().back()->Model()[0]->InputWidth() = 10;
+  module.Model().back()->Model()[0]->InputHeight() = 10;
+
+  Initialize(module.Model());
+  module.Reset();
+
+  // Test Forward function
+  module.Forward(std::move(input), output);
+  REQUIRE(accu(output) == 0);
+  REQUIRE(output.n_rows == 400);
+  REQUIRE(output.n_cols == 1);
+
+  // Test Backward function
+  arma::mat error = arma::zeros(400,1);
+  arma::mat delta;
+  module.Backward(std::move(input), std::move(error), delta);
+  REQUIRE(arma::accu(delta) == 0);
+}
+
+/*
+ * A simple test for Inception3C module
+ */
+TEST_CASE("Inception3CTest", "[ANNLayerTest]")
+{
+  // filter sizes for various layers 
+  const arma::vec outA = {1};
+  const arma::vec outB = {1};
+  const arma::vec outC = {1, 1, 1};
+  const arma::vec outD = {1, 1, 1, 1, 1};
+
+  arma::mat input, output;
+  input.ones(100, 1);
+
+  Inception3C module(1, 10, 10, outA, outB, outC, outD); 
+
+  // Set input width and height for MeanPool
+  module.Model()[1]->Model()[0]->InputWidth() = 10;
+  module.Model()[1]->Model()[0]->InputHeight() = 10;
+  Initialize(module.Model());
+  module.Reset();
+
+  // Test Forward function
+  module.Forward(std::move(input), output);
+  REQUIRE(arma::accu(output) == 0);
+  REQUIRE(output.n_rows == 400);
+  REQUIRE(output.n_cols == 1);
+
+  // Test Backward function
+  arma::mat error = arma::zeros(400,1);
+  arma::mat delta;
+  module.Backward(std::move(input), std::move(error), delta);
+  REQUIRE(arma::accu(delta) == 0);
+
+}
+/*
+ * A simple test for Inception3E module
+ */
+
+TEST_CASE("Inception3ETest", "[ANNLayerTest]")
+{
+  // filter sizes for various layers 
+  const arma::vec outA = {1};
+  const arma::vec outB = {1, 1, 1};
+  const arma::vec outC = {1, 1, 1, 1};
+  const arma::vec outD = {1};
+
+  arma::mat input, output;
+  input.ones(100,1);
+
+  Inception3E module(1, 10, 10, outA, outB, outC, outD); 
+
+  // Set input width and height for Maxpool
+  module.Model().back()->Model()[0]->InputWidth() = 10;
+  module.Model().back()->Model()[0]->InputHeight() = 10;
+  Initialize(module.Model());
+  module.Reset();
+
+  // Test Forward function
+  module.Forward(std::move(input), output);
+  REQUIRE(arma::accu(output) == 0);
+  REQUIRE(output.n_rows == 600);
+  REQUIRE(output.n_cols == 1);
+
+
+  // Test Backward function
+  arma::mat error = arma::zeros(600,1);
+  arma::mat delta;
+  module.Backward(std::move(input), std::move(error), delta);
+  REQUIRE(arma::accu(delta) == 0);
+
+}
+
+/*
+ * A simple test for InceptionB module
+ */
+/*
+TEST_CASE("Inception3BTest", "[ANNLayerTest]")
+{
+  // filter sizes for various layers 
+  const arma::vec outA = {};
+  const arma::vec outB = {1};
+  const arma::vec outC = {1, 1, 1};
+  const arma::vec outD = {};
+
+  arma::mat input, output;
+  input.ones(36,1);
+
+  Inception3B module(1, 6, 6, outA, outB, outC, outD); 
+
+  // Set input width and height for MaxPool
+  module.Model()[0]->Model()[0]->InputWidth() = 6;
+  module.Model()[0]->Model()[0]->InputHeight() = 6;
+  Initialize(module.Model());
+  module.Reset();
+
+  // Test Forward function
+  module.Forward(std::move(input), output);
+  REQUIRE(arma::accu(output) == 4);
+  REQUIRE(output.n_rows == 12);
+  REQUIRE(output.n_cols == 1);
+
+  // Test Backward function
+  // check again
+  arma::mat error = arma::zeros(12,1);
+  arma::mat delta;
+  module.Backward(std::move(input), std::move(error), delta);
+  REQUIRE(arma::accu(delta) == 0);
+
+}
+*/
+
+ /*
+ * A simple test for InceptionD module
+ */
+/*
+TEST_CASE("Inception3DTest", "[ANNLayerTest]")
+{
+  // filter sizes for various layers 
+  const arma::vec outA = {};
+  const arma::vec outB = {1, 1};
+  const arma::vec outC = {1, 1, 1, 1};
+  const arma::vec outD = {};
+
+  arma::mat input, output;
+  input.ones(36,1);
+
+  Inception3D module(1, 6, 6, outA, outB, outC, outD); 
+
+  // Set input width and height for MaxPool
+  module.Model()[0]->Model()[0]->InputWidth() = 6;
+  module.Model()[0]->Model()[0]->InputHeight() = 6;
+  Initialize(module.Model());
+  module.Reset();
+
+  // Test Forward function
+  module.Forward(std::move(input), output);
+  REQUIRE(arma::accu(output) == 16);
+
+  // Test Backward function
+  arma::mat error = arma::zeros(108,1);
+  arma::mat delta;
+  module.Backward(std::move(input), std::move(error), delta);
+  REQUIRE(arma::accu(delta) == 0);
+
+}
+*/
