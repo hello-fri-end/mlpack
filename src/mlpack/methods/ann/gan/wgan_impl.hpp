@@ -16,8 +16,6 @@
 
 #include <mlpack/methods/ann/ffn.hpp>
 #include <mlpack/methods/ann/init_rules/network_init.hpp>
-#include <mlpack/methods/ann/visitor/output_parameter_visitor.hpp>
-#include <mlpack/methods/ann/activation_functions/softplus_function.hpp>
 
 namespace mlpack {
 namespace ann /** Artifical Neural Network.  */ {
@@ -25,12 +23,14 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 template<typename Policy, typename DiscOptimizerType, typename GenOptimizerType>
 typename std::enable_if<std::is_same<Policy, WGAN>::value, void>::type
 GAN<Model, InitializationRuleType, Noise, PolicyType>::Train(
-    arma :: mat trainData,
+    InputType trainData,
     DiscOptimizerType& discriminatorOptimizer,
     GenOptimizerType& generatorOptimizer,
     size_t maxIterations,
@@ -113,17 +113,15 @@ GAN<Model, InitializationRuleType, Noise, PolicyType>::Train(
       noise.imbue( [&]() { return noiseFunction();} );
       generator.Forward(std::move(noise));
 
-      discriminator.Forward(std::move(boost::apply_visitor(
-          outputParameterVisitor, generator.network.back())));
+      discriminator.Forward(generator.network.back()->OutputParameter());
 
       discriminator.outputLayer.Backward(
-          std::move(boost::apply_visitor(outputParameterVisitor,
-          discriminator.network.back())), std::move(discriminatorResponses),
+          discriminator.network.back()->OutputParameter(),
+          std::move(discriminatorResponses),
           std::move(discriminator.error));
       discriminator.Backward();
 
-      generator.error = boost::apply_visitor(deltaVisitor,
-          discriminator.network[1]);
+      generator.error = discriminator.network[1]->Delta();
 
       // Train the generator network.
       generator.Train(noise, generatorOptimizer);

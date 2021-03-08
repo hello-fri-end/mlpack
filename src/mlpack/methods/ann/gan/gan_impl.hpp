@@ -17,9 +17,6 @@
 
 #include <mlpack/methods/ann/ffn.hpp>
 #include <mlpack/methods/ann/init_rules/network_init.hpp>
-#include <mlpack/methods/ann/visitor/output_parameter_visitor.hpp>
-#include <mlpack/methods/ann/activation_functions/softplus_function.hpp>
-#include <boost/serialization/variant.hpp>
 
 namespace mlpack {
 namespace ann /** Artifical Neural Network.  */ {
@@ -27,7 +24,9 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 GAN<Model, InitializationRuleType, Noise, PolicyType>::GAN(
     Model generator,
@@ -65,7 +64,9 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 GAN<Model, InitializationRuleType, Noise, PolicyType>::GAN(
     const GAN& network):
@@ -97,7 +98,9 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 GAN<Model, InitializationRuleType, Noise, PolicyType>::GAN(
     GAN&& network):
@@ -129,7 +132,9 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 void GAN<Model, InitializationRuleType, Noise, PolicyType>::ResetData(
   arma::mat predictors)
@@ -139,7 +144,7 @@ void GAN<Model, InitializationRuleType, Noise, PolicyType>::ResetData(
   numFunctions = predictors.n_cols;
   noise.set_size(noiseDim, batchSize);
 
-  deterministic = true;
+  deterministic = false;
   ResetDeterministic();
 
   this->predictors.set_size(predictors.n_rows, numFunctions + batchSize);
@@ -164,7 +169,9 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 void GAN<Model, InitializationRuleType, Noise, PolicyType>::Reset()
 {
@@ -175,13 +182,12 @@ void GAN<Model, InitializationRuleType, Noise, PolicyType>::Reset()
 
   for (size_t i = 0; i < generator.network.size(); ++i)
   {
-    genWeights += boost::apply_visitor(weightSizeVisitor, generator.network[i]);
+    genWeights += generator.network[i]->WeightSize();
   }
 
   for (size_t i = 0; i < discriminator.network.size(); ++i)
   {
-    discWeights += boost::apply_visitor(weightSizeVisitor,
-        discriminator.network[i]);
+    discWeights += discriminator.network[i]->WeightSize();
   }
 
   parameter.set_size(genWeights + discWeights, 1);
@@ -202,7 +208,9 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 template<typename Policy, typename OptimizerType>
 typename std::enable_if<std::is_same<Policy, WGANGP>::value, double>::type
@@ -219,7 +227,9 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 template<typename Policy, typename DiscOptimizerType, typename GenOptimizerType>
 typename std::enable_if<std::is_same<Policy, StandardGAN>::value ||
@@ -302,17 +312,16 @@ GAN<Model, InitializationRuleType, Noise, PolicyType>::Train(
       noise.imbue( [&]() { return noiseFunction();} );
       generator.Forward(std::move(noise));
 
-      discriminator.Forward(std::move(boost::apply_visitor(
-          outputParameterVisitor, generator.network.back())));
+      discriminator.Forward(std::move
+            (generator.network.back()->OutputParameter()));
 
       discriminator.outputLayer.Backward(
-          std::move(boost::apply_visitor(outputParameterVisitor,
-          discriminator.network.back())), std::move(discriminatorResponses),
+          std::move(discriminator.network.back()->OutputParameter()),
+          std::move(discriminatorResponses),
           std::move(discriminator.error));
       discriminator.Backward();
 
-      generator.error = boost::apply_visitor(deltaVisitor,
-          discriminator.network[1]);
+      generator.error = discriminator.network[1]->Delta();
 
       // Train the generator network.
       generator.Train(noise, generatorOptimizer);
@@ -335,7 +344,9 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 void GAN<Model, InitializationRuleType, Noise, PolicyType>::Shuffle()
 {
@@ -348,18 +359,18 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 void GAN<Model, InitializationRuleType, Noise, PolicyType>::Forward(
-    arma::mat&& input)
+    InputType&& input)
 {
   if (!reset)
     Reset();
 
   generator.Forward(std::move(input));
-  arma::mat ganOutput = boost::apply_visitor(
-      outputParameterVisitor,
-      generator.network.back());
+  arma::mat ganOutput = generator.network.back()->OutputParameter();
 
   discriminator.Forward(std::move(ganOutput));
 }
@@ -368,25 +379,28 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 void GAN<Model, InitializationRuleType, Noise, PolicyType>::
-Predict(arma::mat&& input, arma::mat& output)
+Predict(InputType&& input, OutputType& output)
 {
   if (!reset)
     Reset();
 
   Forward(std::move(input));
 
-  output = boost::apply_visitor(outputParameterVisitor,
-      discriminator.network.back());
+  output = discriminator.network.back()->OutputParameter();
 }
 
 template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 void GAN<Model, InitializationRuleType, Noise, PolicyType>::
 ResetDeterministic()
@@ -401,16 +415,58 @@ template<
   typename Model,
   typename InitializationRuleType,
   typename Noise,
-  typename PolicyType
+  typename PolicyType,
+  typename InputType,
+  typename OutputType
 >
 template<typename Archive>
 void GAN<Model, InitializationRuleType, Noise, PolicyType>::
 serialize(Archive& ar, const unsigned int /* version */)
 {
-  ar & BOOST_SERIALIZATION_NVP(parameter);
-  ar & BOOST_SERIALIZATION_NVP(generator);
-  ar & BOOST_SERIALIZATION_NVP(discriminator);
-  ar & BOOST_SERIALIZATION_NVP(noiseFunction);
+  ar(CEREAL_NVP(parameter));
+  ar(CEREAL_NVP(generator));
+  ar(CEREAL_NVP(discriminator));
+  ar(CEREAL_NVP(reset));
+  ar(CEREAL_NVP(genWeights));
+  ar(CEREAL_NVP(discWeights));
+
+  if (cereal::is_loading<Archive>())
+  {
+    // Share the parameters between the network.
+    generator.Parameters() = arma::mat(parameter.memptr(), genWeights, 1, false,
+        false);
+    discriminator.Parameters() = arma::mat(parameter.memptr() + genWeights,
+        discWeights, 1, false, false);
+
+    size_t offset = 0;
+    for (size_t i = 0; i < generator.Model().size(); ++i)
+    {
+      generator.Model()[i]->Parameters() = arma::mat(generator.parameter.memptr() + offset,
+          generator.Model()[i]->Parameters().n_rows,
+          generator.Model()[i]->Parameters().n_cols, false, false);
+
+      offset += generator.Model()[i]->Parameters().n_elem;
+
+      //boost::apply_visitor(resetVisitor, generator.network[i]);
+      generator.Model()[i]->Reset();
+    }
+
+    offset = 0;
+    for (size_t i = 0; i < discriminator.Model().size(); ++i)
+    {
+      discriminator.Model()[i]->Parameters()= arma::mat(discriminator.parameter.memptr() + offset,
+          discriminator.Model()[i]->Parameters().n_rows,
+          discriminator.Model()[i]->Parameters().n_cols, false, false);
+
+      offset += discriminator.Model()[i]->Parameters().n_elem;
+
+      //boost::apply_visitor(resetVisitor, discriminator.network[i]);
+      discriminator.Model()[i]->Reset();
+    }
+
+    deterministic = true;
+    ResetDeterministic();
+  }
 }
 
 } // namespace ann
