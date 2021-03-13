@@ -4,11 +4,9 @@ set(SOURCES
   gan.hpp
   gan_impl.hpp
   gan_policies.hpp
-  wgan_impl.hpp
+   wgan_impl.hpp
   wgangp_impl.hpp
 )
-
-add_subdirectory(metrics)
 
 # Add directory name to sources.
 set(DIR_SRCS)

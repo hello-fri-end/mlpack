@@ -15,7 +15,7 @@
 #include <mlpack/methods/ann/init_rules/gaussian_init.hpp>
 #include <mlpack/methods/ann/loss_functions/sigmoid_cross_entropy_error.hpp>
 #include <mlpack/methods/ann/gan/gan.hpp>
-#include <mlpack/methods/ann/layer/layer.hpp>
+#include <mlpack/methods/ann/layer/layer_types.hpp>
 #include <mlpack/methods/softmax_regression/softmax_regression.hpp>
 
 #include <ensmallen.hpp>
@@ -81,6 +81,7 @@ TEST_CASE("GANTest", "[GANNetworkTest]")
       std::function<double()> >
   gan(generator, discriminator, gaussian, noiseFunction, noiseDim, batchSize,
       generatorUpdateStep, discriminatorPreTrain, multiplier);
+  std::cout<<"YOUUOUOU?"<<std::endl;
   gan.ResetData(trainData);
 
   Log::Info << "Loading Parameters" << std::endl;
@@ -123,8 +124,11 @@ TEST_CASE("GANTest", "[GANNetworkTest]")
   double originalStd = arma::as_scalar(arma::stddev(
       generatedData.rows(dim, 2 * dim - 1), 0, 1));
 
+  std::cout<< generatedMean - originalMean<<std::endl;
+  std::cout<< generatedStd - originalStd<<std::endl;
   REQUIRE(generatedMean - originalMean <= 0.2);
   REQUIRE(generatedStd - originalStd <= 0.2);
+  std::cout<<"Forward function passed - gan test"<<std::endl;
 }
 
 /*
@@ -159,35 +163,44 @@ TEST_CASE("GANMNISTTest", "[GANNetworkTest]")
       << " shuffle = " << shuffle << std::endl;
 
   arma::mat trainData;
+  std::cout<<"mnist test gan - "<<std::endl;
   trainData.load("mnist_first250_training_4s_and_9s.arm");
   Log::Info << arma::size(trainData) << std::endl;
+  std::cout<<"mnist test gan - "<<std::endl;
 
   trainData = trainData.cols(0, datasetMaxCols - 1);
 
   size_t numIterations = trainData.n_cols * numEpoches;
   numIterations /= batchSize;
+  std::cout<<"mnist test gan - "<<std::endl;
 
   Log::Info << "Dataset loaded (" << trainData.n_rows << ", "
             << trainData.n_cols << ")" << std::endl;
   Log::Info << trainData.n_rows << "--------" << trainData.n_cols << std::endl;
+  std::cout<<"mnist test gan - "<<std::endl;
 
   // Create the Discriminator network.
   FFN<SigmoidCrossEntropyError<> > discriminator;
   discriminator.Add<Convolution>(1, dNumKernels, 5, 5, 1, 1, 2, 2, 28, 28);
   discriminator.Add<ReLULayer>();
   discriminator.Add<MeanPooling>(2, 2, 2, 2);
+  discriminator.Model()[2]->InputWidth() = 28;
+  discriminator.Model()[2]->InputHeight() = 28;
   discriminator.Add<Convolution>(dNumKernels, 2 * dNumKernels, 5, 5, 1, 1,
       2, 2, 14, 14);
   discriminator.Add<ReLULayer>();
   discriminator.Add<MeanPooling>(2, 2, 2, 2);
+  discriminator.Model()[5]->InputHeight() = 14;
+  discriminator.Model()[5]->InputWidth() = 14;
   discriminator.Add<Linear>(7 * 7 * 2 * dNumKernels, 1024);
   discriminator.Add<ReLULayer>();
   discriminator.Add<Linear>(1024, 1);
+  std::cout<<"mnist test gan - "<<std::endl;
 
   // Create the Generator network.
   FFN<SigmoidCrossEntropyError<> > generator;
   generator.Add<Linear>(noiseDim, 3136);
-  generator.Add<BatchNorm>(3136); //batch norm not updated yet to use abstract class
+  generator.Add<BatchNorm>(3136); 
   generator.Add<ReLULayer>();
   generator.Add<Convolution>(1, noiseDim / 2, 3, 3, 2, 2, 1, 1, 56, 56);
   generator.Add<BatchNorm>(39200);
@@ -200,10 +213,15 @@ TEST_CASE("GANMNISTTest", "[GANNetworkTest]")
   generator.Add<BilinearInterpolation>(28, 28, 56, 56, noiseDim / 4);
   generator.Add<Convolution>(noiseDim / 4, 1, 3, 3, 2, 2, 1, 1, 56, 56);
   generator.Add<TanHLayer>();
+  std::cout<<"mnist test gan - "<<std::endl;
 
   // Create GAN.
   GaussianInitialization gaussian(0, 1);
-  ens::Adam optimizer(stepSize, batchSize, 0.9, 0.999, eps, numIterations,
+  ens::Adam discOptimizer(stepSize, batchSize, 0.9, 0.999, eps, numIterations,
+      tolerance, shuffle);
+  ens::Adam genOptimizer(stepSize, batchSize, 0.9, 0.999, eps, numIterations,
+      tolerance, shuffle);
+  ens::Adam Optimizer(stepSize, batchSize, 0.9, 0.999, eps, numIterations,
       tolerance, shuffle);
   std::function<double()> noiseFunction = [] () {
       return math::RandNormal(0, 1);};
@@ -211,12 +229,20 @@ TEST_CASE("GANMNISTTest", "[GANNetworkTest]")
       std::function<double()> > gan(generator, discriminator,
       gaussian, noiseFunction, noiseDim, batchSize, generatorUpdateStep,
       discriminatorPreTrain, multiplier);
+  std::cout<<"mnist test gan - "<<std::endl;
 
   Log::Info << "Training..." << std::endl;
-  std::stringstream stream;
-  double objVal = gan.Train(trainData, optimizer, ens::ProgressBar(70, stream));
-  REQUIRE(stream.str().length() > 0);
-  REQUIRE(std::isfinite(objVal) == true);
+  std::stringstream streamA;
+  std::stringstream streamB;
+  std::cout<<"mnist train gan - "<<std::endl;
+  // using single optimizer
+  double objValSingle = gan.Train(trainData,Optimizer, ens::ProgressBar(70, streamA));
+  double objValDual = gan.Train(trainData, discOptimizer, genOptimizer, numIterations, ens::ProgressBar(70, streamB));
+  std::cout<<"mnist train gan - "<<std::endl;
+  REQUIRE(streamA.str().length() > 0);
+  REQUIRE(std::isfinite(objValSingle) == true);
+  REQUIRE(streamB.str().length() > 0);
+  REQUIRE(std::isfinite(objValDual) == true);
 
   // Generate samples.
   Log::Info << "Sampling..." << std::endl;
@@ -265,18 +291,29 @@ TEST_CASE("GANMNISTTest", "[GANNetworkTest]")
       gaussian, noiseFunction, noiseDim, batchSize, generatorUpdateStep,
       discriminatorPreTrain, multiplier);
 
+  std::cout<<"Where the problem at?"<<std::endl;
   SerializeObjectAll(gan, ganXml, ganText, ganBinary);
+  std::cout<<"Where the problem at?"<<std::endl;
 
   arma::mat predictions, xmlPredictions, textPredictions, binaryPredictions;
+  std::cout<<"Where the problem at?"<<std::endl;
   gan.Predict(noise, predictions);
+  std::cout<<"Where the problem at?"<<std::endl;
   ganXml.Predict(noise, xmlPredictions);
+  std::cout<<"Where the problem at?"<<std::endl;
   ganText.Predict(noise, textPredictions);
+  std::cout<<"Where the problem at?"<<std::endl;
   ganBinary.Predict(noise, binaryPredictions);
+  std::cout<<"Where the problem at?"<<std::endl;
 
   CheckMatrices(orgPredictions, predictions);
+  std::cout<<"Where the problem at?"<<std::endl;
   CheckMatrices(orgPredictions, xmlPredictions);
+  std::cout<<"Where the problem at?"<<std::endl;
   CheckMatrices(orgPredictions, textPredictions);
+  std::cout<<"Where the problem at?"<<std::endl;
   CheckMatrices(orgPredictions, binaryPredictions);
+  std::cout<<"Where the problem at?"<<std::endl;
 }
 
 /*
@@ -326,7 +363,7 @@ TEST_CASE("GANMemorySharingTest", "[GANNetworkTest]")
 
   // Create GAN.
   GaussianInitialization gaussian(0, 0.1);
-  ens::Adam optimizer(stepSize, batchSize, 0.9, 0.999, eps, numIterations,
+  ens::Adam Optimizer(stepSize, batchSize, 0.9, 0.999, eps, numIterations,
       tolerance, shuffle);
   std::function<double ()> noiseFunction = [](){ return math::Random(-8, 8) +
       math::RandNormal(0, 1) * 0.01;};
@@ -337,12 +374,19 @@ TEST_CASE("GANMemorySharingTest", "[GANNetworkTest]")
       noiseDim, batchSize, generatorUpdateStep, discriminatorPreTrain,
       multiplier);
 
-  gan.Train(trainData, optimizer);
+  gan.Train(trainData, Optimizer);
+  std::cout<<"FUCKETI fuck"<<std::endl;
 
   CheckMatrices(gan.Predictors().head_cols(trainData.n_cols), trainData);
+  std::cout<<"FUCKETI fuck"<<std::endl;
   CheckMatrices(gan.Predictors(), gan.Discriminator().Predictors());
+  std::cout<<"FUCKETI fuck"<<std::endl;
   gan.Shuffle();
+  std::cout<<"FUCKETI fuck"<<std::endl;
   CheckMatrices(gan.Predictors(), gan.Discriminator().Predictors());
+  std::cout<<"FUCKETI fuck"<<std::endl;
   CheckMatricesNotEqual(gan.Predictors().head_cols(trainData.n_cols),
       trainData);
+  std::cout<<"FUCKETI fuck"<<std::endl;
 }
+

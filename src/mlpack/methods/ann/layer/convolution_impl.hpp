@@ -75,6 +75,8 @@ ConvolutionType<
       paddingType)
 {
   // Nothing to do here.
+  std::cout<<"initialization function of convoiotin"<<std::endl;
+  std::cout<<inputHeight<<" "<<inputWidth<<std::endl;
 }
 
 template<

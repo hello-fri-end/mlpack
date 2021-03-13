@@ -1,5 +1,5 @@
 /**
- * @file methods/ann/gan/gan.hpp
+ * @file gan.hpp
  * @author Kris Singh
  * @author Shikhar Jaiswal
  *
@@ -14,14 +14,8 @@
 #include <mlpack/core.hpp>
 
 #include <mlpack/methods/ann/ffn.hpp>
-#include <mlpack/methods/ann/layer/layer.hpp>
-#include <mlpack/methods/ann/layer/layer_types.hpp>
 #include <mlpack/methods/ann/gan/gan_policies.hpp>
-#include "mlpack/methods/ann/util/gradient_update.hpp"
-#include "mlpack/methods/ann/util/loss_update.hpp"
-#include "mlpack/methods/ann/util/output_width_update.hpp"
-#include "mlpack/methods/ann/util/output_height_update.hpp"
-#include "mlpack/methods/ann/util/reset_update.hpp"
+#include <mlpack/methods/ann/layer/layer_types.hpp>
 #include "metrics/inception_score.hpp"
 
 
@@ -65,7 +59,7 @@ template<
   typename InputType = arma::mat,
   typename OutputType = arma::mat
 >
-class GAN 
+class GAN
 {
  public:
   /**
@@ -73,10 +67,6 @@ class GAN
    *
    * @param generator Generator network.
    * @param discriminator Discriminator network.
-   * @param initializeRule Initialization rule to use for initializing
-   *                       parameters.
-   * @param noiseFunction Function to be used for generating noise.
-   * @param noiseDim Dimension of noise vector to be created.
    * @param batchSize Batch size to be used for training.
    * @param generatorUpdateStep Number of steps to train Discriminator
    *                            before updating Generator.
@@ -104,12 +94,12 @@ class GAN
   GAN(GAN&&);
 
   /**
-   * Initialize the generator, discriminator and weights of the model for
-   * training. This function won't actually trigger training process.
+   * Prepare the network for the given data.
+   * This function won't actually trigger training process.
    *
-   * @param trainData The data points of real distribution.
+   * @param predictors The data points of real distribution.
    */
-  void ResetData(InputType trainData);
+  void ResetData(InputType predictors);
 
   // Reset function.
   void Reset();
@@ -117,18 +107,36 @@ class GAN
   /**
    * Train function.
    *
-   * @tparam OptimizerType Type of optimizer to use to train the model.
-   * @tparam CallbackTypes Types of Callback functions.
-   * @param trainData The data points of real distribution.
-   * @param Optimizer Instantiated optimizer used to train the model. 
-   * @param callbacks Callback function for ensmallen optimizer `OptimizerType`.
-   *      See https://www.ensmallen.org/docs.html#callback-documentation.
+   * @param predictors The data points of real distribution.
+   * @param optimizer Instantiated optimizer used to train the model.
+   * @param callbacks Callback function for ensmallen optimizer 'OptimizerType'
+   *    See https://www.ensmallen.org/docs.html#callback-documentation.
    * @return The final objective of the trained model (NaN or Inf on error).
    */
   template<typename OptimizerType, typename... CallbackTypes>
-  double Train(InputType trainData,
-               OptimizerType& Optimizer,
+  double Train(InputType predictors,
+               OptimizerType& optimizer,
                CallbackTypes&&... callbacks);
+
+  /**
+   * Train function for the Standard GAN and DCGAN.
+   *
+   * @param predictors The data points of real distribution.
+   * @param discriminatorOptimizer Optimizer for discriminator network.
+   * @param generatorOptimizer Optimizer for generator network.
+   * @param maxIterations Number of iterations for which to train GAN.
+   */
+  template<typename Policy = PolicyType,
+           typename DiscOptimizerType,
+           typename GenOptimizerType,
+           typename... CallbackTypes>
+  typename std::enable_if<std::is_same<Policy, StandardGAN>::value ||
+                          std::is_same<Policy, DCGAN>::value, double>::type
+  Train(InputType predictors,
+        DiscOptimizerType& discriminatorOptimizer,
+        GenOptimizerType& generatorOptimizer,
+        size_t maxIterations,
+        CallbackTypes&&... callbacks);
 
   /**
    * Evaluate function for the Standard GAN and DCGAN.
@@ -154,13 +162,12 @@ class GAN
    * @param i Index of the current input.
    * @param batchSize Variable to store the present number of inputs.
    */
-  template<typename Policy = PolicyType>
-  typename std::enable_if<std::is_same<Policy, WGAN>::value,
-                          double>::type
-  Evaluate(const OutputType& parameters,
-           const size_t i,
-           const size_t batchSize);
-
+  //template<typename Policy = PolicyType>
+  //typename std::enable_if<std::is_same<Policy, WGAN>::value,
+  //                        double>::type
+  //Evaluate(const OutputType& parameters,
+  //         const size_t i,
+  //         const size_t batchSize);
   /**
    * Evaluate function for the WGAN-GP.
    * This function gives the performance of the WGAN-GP on the current input.
@@ -169,13 +176,14 @@ class GAN
    * @param i Index of the current input.
    * @param batchSize Variable to store the present number of inputs.
    */
-  template<typename Policy = PolicyType>
-  typename std::enable_if<std::is_same<Policy, WGANGP>::value,
-                          double>::type
-  Evaluate(const OutputType& parameters,
-           const size_t i,
-           const size_t batchSize);
+  //template<typename Policy = PolicyType>
+  //typename std::enable_if<std::is_same<Policy, WGANGP>::value,
+  //                        double>::type
+  //Evaluate(const InputType& parameters,
+  //         const size_t i,
+  //         const size_t batchSize);
 
+  
   /**
    * EvaluateWithGradient function for the Standard GAN and DCGAN.
    * This function gives the performance of the Standard GAN or DCGAN on the
@@ -204,13 +212,13 @@ class GAN
    * @param gradient Variable to store the present gradient.
    * @param batchSize Variable to store the present number of inputs.
    */
-  template<typename GradType, typename Policy = PolicyType>
-  typename std::enable_if<std::is_same<Policy, WGAN>::value,
-                          double>::type
-  EvaluateWithGradient(const OutputType& parameters,
-                       const size_t i,
-                       GradType& gradient,
-                       const size_t batchSize);
+  //template<typename GradType, typename Policy = PolicyType>
+  //typename std::enable_if<std::is_same<Policy, WGAN>::value,
+  //                        double>::type
+  //EvaluateWithGradient(const OutputType& parameters,
+  //                     const size_t i,
+  //                     GradType& gradient,
+  //                     const size_t batchSize);
 
   /**
    * EvaluateWithGradient function for the WGAN-GP.
@@ -222,14 +230,14 @@ class GAN
    * @param gradient Variable to store the present gradient.
    * @param batchSize Variable to store the present number of inputs.
    */
-  template<typename GradType, typename Policy = PolicyType>
-  typename std::enable_if<std::is_same<Policy, WGANGP>::value,
-                          double>::type
-  EvaluateWithGradient(const OutputType& parameters,
-                       const size_t i,
-                       GradType& gradient,
-                       const size_t batchSize);
-
+//  template<typename GradType, typename Policy = PolicyType>
+//  typename std::enable_if<std::is_same<Policy, WGANGP>::value,
+//                          double>::type
+//  EvaluateWithGradient(const InputType& parameters,
+//                       const size_t i,
+//                       GradType& gradient,
+//                       const size_t batchSize);
+//
   /**
    * Gradient function for Standard GAN and DCGAN.
    * This function passes the gradient based on which network is being
@@ -258,13 +266,12 @@ class GAN
    * @param gradient Variable to store the present gradient.
    * @param batchSize Variable to store the present number of inputs.
    */
-  template<typename Policy = PolicyType>
-  typename std::enable_if<std::is_same<Policy, WGAN>::value, void>::type
-  Gradient(const OutputType& parameters,
-           const size_t i,
-           OutputType& gradient,
-           const size_t batchSize);
-
+ // template<typename Policy = PolicyType>
+ // typename std::enable_if<std::is_same<Policy, WGAN>::value, void>::type
+ // Gradient(const OutputType& parameters,
+ //          const size_t i,
+ //          OutputType& gradient,
+ //          const size_t batchSize);
   /**
    * Gradient function for WGAN-GP.
    * This function passes the gradient based on which network is being
@@ -275,13 +282,13 @@ class GAN
    * @param gradient Variable to store the present gradient.
    * @param batchSize Variable to store the present number of inputs.
    */
-  template<typename Policy = PolicyType>
-  typename std::enable_if<std::is_same<Policy, WGANGP>::value,
-                          void>::type
-  Gradient(const OutputType& parameters,
-           const size_t i,
-           OutputType& gradient,
-           const size_t batchSize);
+ // template<typename Policy = PolicyType>
+ // typename std::enable_if<std::is_same<Policy, WGANGP>::value,
+ //                         void>::type
+ // Gradient(const InputType& parameters,
+ //          const size_t i,
+ //          OutputType& gradient,
+ //          const size_t batchSize);
 
   /**
    * Shuffle the order of function visitation. This may be called by the
@@ -299,10 +306,11 @@ class GAN
   /**
    * This function predicts the output of the network on the given input.
    *
-   * @param input The input of the Generator network.
+   * @param input The input the Discriminator network.
    * @param output Result of the Discriminator network.
    */
-  void Predict(InputType input, OutputType& output);
+  void Predict(InputType& input,
+              OutputType& output);
 
   //! Return the parameters of the network.
   const OutputType& Parameters() const { return parameter; }
@@ -322,9 +330,9 @@ class GAN
   size_t NumFunctions() const { return numFunctions; }
 
   //! Get the matrix of responses to the input data points.
-  const InputType& Responses() const { return responses; }
+  const OutputType& Responses() const { return responses; }
   //! Modify the matrix of responses to the input data points.
-  InputType& Responses() { return responses; }
+  OutputType& Responses() { return responses; }
 
   //! Get the matrix of data points (predictors).
   const InputType& Predictors() const { return predictors; }
@@ -333,7 +341,7 @@ class GAN
 
   //! Serialize the model.
   template<typename Archive>
-  void serialize(Archive& ar, const uint32_t /* version */);
+  void serialize(Archive& ar, const unsigned int /* version */);
 
  private:
   /**
@@ -341,7 +349,6 @@ class GAN
   * for the discriminator and generator networks and their respective layers.
   */
   void ResetDeterministic();
-
   //! Locally stored parameter for training data + noise data.
   InputType predictors;
   //! Locally stored parameters of the network.
@@ -360,6 +367,8 @@ class GAN
   size_t numFunctions;
   //! Locally stored batch size parameter.
   size_t batchSize;
+  //! Locally stored number of iterations that have been completed.
+  size_t counter;
   //! Locally stored batch number which is being processed.
   size_t currentBatch;
   //! Locally stored number of training step before Generator is trained.
@@ -375,11 +384,11 @@ class GAN
   //! Locally stored reset parameter.
   bool reset;
   //! Locally stored responses.
-  InputType responses;
+  OutputType responses;
   //! Locally stored current input.
   InputType currentInput;
   //! Locally stored current target.
-  InputType currentTarget;
+  OutputType currentTarget;
   //! Locally stored gradient parameters.
   OutputType gradient;
   //! Locally stored gradient for Discriminator.

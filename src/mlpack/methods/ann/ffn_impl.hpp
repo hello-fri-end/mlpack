@@ -37,9 +37,11 @@ FFN<OutputLayerType, InitializationRuleType, InputType, OutputType>::FFN(
     height(0),
     reset(false),
     numFunctions(0),
-    deterministic(false)
+    deterministic(false),
+    supervised(true)
 {
   /* Nothing to do here. */
+  std::cout<<"hello?"<<std::endl;
 }
 
 template<typename OutputLayerType,
@@ -48,8 +50,14 @@ template<typename OutputLayerType,
          typename OutputType>
 FFN<OutputLayerType, InitializationRuleType, InputType, OutputType>::~FFN()
 {
-  for (size_t i = 0; i < network.size(); ++i)
-    delete network[i];
+  std::cout<<"FEED DESTRUCTOR"<<std::endl;
+  std::cout<<network.size()<<std::endl;
+ // for (size_t i = 0; i < network.size(); ++i)
+ // {
+ //   std::cout<<"choot"<<std::endl;
+ //   delete network[i];
+ // }
+  std::cout<<"I think this is wehre the problem is the"<<std::endl;
 }
 template<typename OutputLayerType,
          typename InitializationRuleType,
@@ -67,6 +75,27 @@ void FFN<OutputLayerType, InitializationRuleType, InputType, OutputType>::
   if (!reset)
     ResetParameters();
 }
+
+template<typename OutputLayerType,
+         typename InitializationRuleType,
+         typename InputType,
+         typename OutputType>
+void FFN<OutputLayerType, InitializationRuleType, InputType, OutputType>::ResetData(
+    InputType predictors)
+{
+  numFunctions = predictors.n_cols;
+  this->predictors = std::move(predictors);
+  this->deterministic = false;
+  ResetDeterministic();
+
+  // As only predictors are passed,
+  // make the learning mode as unsupervised.
+  supervised = false;
+
+  if (!reset)
+    ResetParameters();
+}
+
 
 template<typename OutputLayerType,
          typename InitializationRuleType,
@@ -154,6 +183,30 @@ double FFN<OutputLayerType, InitializationRuleType, InputType, OutputType>::
       << "." << std::endl;
   return out;
 }
+
+template<typename OutputLayerType,
+         typename InitializationRuleType,
+         typename InputType,
+         typename OutputType>
+template<typename OptimizerType, typename... CallbackTypes>
+double FFN<OutputLayerType, InitializationRuleType, InputType, OutputType>::Train(
+      InputType predictors,
+      OptimizerType& optimizer,
+      CallbackTypes&&... callbacks)
+{
+  ResetData(std::move(predictors));
+  WarnMessageMaxIterations<OptimizerType>(optimizer, this->predictors.n_cols);
+
+  // Train the model.
+  Timer::Start("ffn_optimization");
+  const double out = optimizer.Optimize(*this, parameter, callbacks...);
+  Timer::Stop("ffn_optimization");
+
+  Log::Info << "FFN::FFN(): final objective of trained model is " << out
+      << "." << std::endl;
+  return out;
+}
+
 
 template<typename OutputLayerType,
          typename InitializationRuleType,
@@ -308,9 +361,13 @@ double FFN<OutputLayerType, InitializationRuleType, InputType, OutputType>::
 
   Forward(predictors.cols(begin, begin + batchSize - 1));
 
-  double res = outputLayer.Forward(network.back()->OutputParameter(),
-      responses.cols(begin, begin + batchSize - 1));
+  double res = 0;
 
+  if(supervised)
+  {
+  res = outputLayer.Forward(network.back()->OutputParameter(),
+      responses.cols(begin, begin + batchSize - 1));
+  }
   for (size_t i = 0; i < network.size(); ++i)
     res += LossUpdate(network[i]);
 
@@ -370,18 +427,23 @@ EvaluateWithGradient(const OutputType& /* parameters */,
     ResetDeterministic();
   }
 
+  double res = 0;
   Forward(predictors.cols(begin, begin + batchSize - 1));
-  double res = outputLayer.Forward(
+  if(supervised)
+  {
+  res = outputLayer.Forward(
       network.back()->OutputParameter(),
       responses.cols(begin, begin + batchSize - 1));
+  }
 
   for (size_t i = 0; i < network.size(); ++i)
     res += network[i]->Loss();
-
+  if(supervised)
+  {
   outputLayer.Backward(network.back()->OutputParameter(),
       responses.cols(begin, begin + batchSize - 1),
       error);
-
+  }
   Backward();
   ResetGradients(gradient);
   Gradient(predictors.cols(begin, begin + batchSize - 1));
@@ -598,6 +660,7 @@ Swap(FFN& network)
   std::swap(numFunctions, network.numFunctions);
   std::swap(error, network.error);
   std::swap(deterministic, network.deterministic);
+  std::swap(supervised, network.supervised);
   std::swap(delta, network.delta);
   std::swap(inputParameter, network.inputParameter);
   std::swap(outputParameter, network.outputParameter);
@@ -619,6 +682,7 @@ FFN<OutputLayerType, InitializationRuleType, InputType, OutputType>::FFN(
     responses(network.responses),
     parameter(network.parameter),
     numFunctions(network.numFunctions),
+    supervised(network.supervised),
     error(network.error),
     deterministic(network.deterministic),
     delta(network.delta),
@@ -626,12 +690,15 @@ FFN<OutputLayerType, InitializationRuleType, InputType, OutputType>::FFN(
     outputParameter(network.outputParameter),
     gradient(network.gradient)
 {
+  std::cout<<"Do you ever get called?"<<std::endl;
   // Build new layers according to source network
   for (size_t i = 0; i < network.network.size(); ++i)
   {
+    std::cout<<"Hoe many times?"<<std::endl;
     this->network.push_back(network.network[i]);
     ResetUpdate(this->network.back());
   }
+  std::cout<<"Do you ever get called?"<<std::endl;
 };
 
 template<typename OutputLayerType,
@@ -645,6 +712,7 @@ FFN<OutputLayerType, InitializationRuleType, InputType, OutputType>::FFN(
     width(network.width),
     height(network.height),
     reset(network.reset),
+    supervised(network.supervised),
     predictors(std::move(network.predictors)),
     responses(std::move(network.responses)),
     parameter(std::move(network.parameter)),
@@ -656,7 +724,10 @@ FFN<OutputLayerType, InitializationRuleType, InputType, OutputType>::FFN(
     outputParameter(std::move(network.outputParameter)),
     gradient(std::move(network.gradient))
 {
+  std::cout<<"Do you never get called?"<<std::endl;
+  std::cout<<network.network.size()<<std::endl;
   this->network = std::move(network.network);
+  std::cout<<"Do you never get called?"<<std::endl;
 };
 
 template<typename OutputLayerType,

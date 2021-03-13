@@ -1,5 +1,5 @@
 /**
- * @file methods/ann/gan/gan_policies.hpp
+ * @file gan_policies.hpp
  * @author Shikhar Jaiswal
  *
  * Implementation of the GAN policy types.

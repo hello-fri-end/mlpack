@@ -5,7 +5,7 @@ add_executable(mlpack_test
   # akfn_test.cpp
   # aknn_test.cpp
   # ann_dist_test.cpp
-  ann_layer_test.cpp
+  # ann_layer_test.cpp
   # ann_regularizer_test.cpp
   # ann_test_tools.hpp
   # ann_visitor_test.cpp
@@ -21,7 +21,7 @@ add_executable(mlpack_test
   # cf_test.cpp
   # cli_binding_test.cpp
   # convolutional_network_test.cpp
-  # convolution_test.cpp
+  #convolution_test.cpp
   # cosine_tree_test.cpp
   # cv_test.cpp
   # dbscan_test.cpp
@@ -34,8 +34,8 @@ add_executable(mlpack_test
   # emst_test.cpp
   # facilities_test.cpp
   # fastmks_test.cpp
-  feedforward_network_test.cpp
-  # gan_test.cpp
+  #feedforward_network_test.cpp
+  gan_test.cpp
   # gmm_test.cpp
   # hmm_test.cpp
   # hpt_test.cpp
@@ -64,7 +64,7 @@ add_executable(mlpack_test
   # local_coordinate_coding_test.cpp
   # logistic_regression_test.cpp
   # log_test.cpp
-  loss_functions_test.cpp
+  #loss_functions_test.cpp
   # lsh_test.cpp
   main.cpp
   # math_test.cpp
