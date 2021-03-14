@@ -48,9 +48,6 @@ template<typename OutputLayerType, typename InitializationRuleType,
          typename... CustomLayers>
 FFN<OutputLayerType, InitializationRuleType, CustomLayers...>::~FFN()
 {
-  std::cout<<" destructor : "<<network.size()<<std::endl;
-  for(size_t i = 0; i < network.size(); ++i)
-    std::cout<<"wo "<<network[i]<<std::endl;
   std::for_each(network.begin(), network.end(),
       boost::apply_visitor(deleteVisitor));
 }
@@ -465,9 +462,13 @@ template<typename InputType>
 void FFN<OutputLayerType, InitializationRuleType,
          CustomLayers...>::Forward(const InputType& input)
 {
+  std::cout<<"tos me"<<std::endl;
+  std::cout<<input.n_rows<<" "<<input.n_cols<<std::endl;
   boost::apply_visitor(ForwardVisitor(input,
       boost::apply_visitor(outputParameterVisitor, network.front())),
       network.front());
+  arma::mat a = boost::apply_visitor(outputParameterVisitor, network.front());
+  std::cout<<a.n_rows<<" "<<a.n_cols<<std::endl;
 
   if (!reset)
   {
@@ -638,16 +639,12 @@ FFN<OutputLayerType, InitializationRuleType, CustomLayers...>::FFN(
     outputParameter(network.outputParameter),
     gradient(network.gradient)
 {
-  std::cout<<"Hello from copy contructor: "<<network.network.size()<<" " <<this->network.size()<<" "<<std::endl;
   // Build new layers according to source network
   for (size_t i = 0; i < network.network.size(); ++i)
   {
-    std::cout<<"copy "<<network.network[i]<<std::endl;
     this->network.push_back(boost::apply_visitor(copyVisitor,
         network.network[i]));
-    std::cout<<"now contains: "<<this->network.back()<<std::endl;
     boost::apply_visitor(resetVisitor, this->network.back());
-    std::cout<<"now contains after reset: "<<this->network.back()<<std::endl;
   }
 };
 
@@ -671,9 +668,7 @@ FFN<OutputLayerType, InitializationRuleType, CustomLayers...>::FFN(
     outputParameter(std::move(network.outputParameter)),
     gradient(std::move(network.gradient))
 {
-  std::cout<<"Helo from move constructor: "<<network.network.front()<<" "<<this->network.size()<<std::endl;
   this->network = std::move(network.network);
-  std::cout<<"Helo from move constructor: "<<network.network.size()<<" "<<this->network.front()<<std::endl;
 };
 
 template<typename OutputLayerType, typename InitializationRuleType,
