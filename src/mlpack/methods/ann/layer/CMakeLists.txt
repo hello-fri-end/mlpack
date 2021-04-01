@@ -46,8 +46,6 @@ set(SOURCES
   hard_tanh_impl.hpp
   highway.hpp
   highway_impl.hpp
-  isrlu.hpp
-  isrlu_impl.hpp
   instance_norm.hpp
   instance_norm_impl.hpp
   join.hpp
